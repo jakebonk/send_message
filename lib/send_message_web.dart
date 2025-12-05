@@ -14,6 +14,7 @@ class FlutterSmsPlugin extends FlutterSmsPlatform {
   Future<String> sendSMS({
     required String message,
     required List<String> recipients,
+    List<String>? attachmentPaths,
     bool sendDirect = false,
   }) async {
     bool _messageSent =

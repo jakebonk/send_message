@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:send_message/send_message.dart';
 
 void main() => runApp(MyApp());
@@ -18,6 +20,7 @@ class _MyAppState extends State<MyApp> {
   String _canSendSMSMessage = 'Check is not run.';
   List<String> people = [];
   bool sendDirect = false;
+  String? _imagePath;
 
   @override
   void initState() {
@@ -36,6 +39,7 @@ class _MyAppState extends State<MyApp> {
         message: _controllerMessage.text,
         recipients: recipients,
         sendDirect: sendDirect,
+        attachmentPaths: _imagePath == null ? null : [_imagePath!],
       );
       setState(() => _message = _result);
     } catch (error) {
@@ -46,11 +50,20 @@ class _MyAppState extends State<MyApp> {
   Future<bool> _canSendSMS() async {
     bool _result = await canSendSMS();
     setState(
-      () => _canSendSMSMessage = _result
-          ? 'This unit can send SMS'
-          : 'This unit cannot send SMS',
+      () => _canSendSMSMessage =
+          _result ? 'This unit can send SMS' : 'This unit cannot send SMS',
     );
     return _result;
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _imagePath = pickedFile.path;
+      });
+    }
   }
 
   Widget _phoneTile(String name) {
@@ -128,9 +141,9 @@ class _MyAppState extends State<MyApp> {
                 onPressed: _controllerPeople.text.isEmpty
                     ? null
                     : () => setState(() {
-                        people.add(_controllerPeople.text.toString());
-                        _controllerPeople.clear();
-                      }),
+                          people.add(_controllerPeople.text.toString());
+                          _controllerPeople.clear();
+                        }),
               ),
             ),
             const Divider(),
@@ -142,6 +155,20 @@ class _MyAppState extends State<MyApp> {
                 onChanged: (String value) => setState(() {}),
               ),
             ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.image),
+              title: Text(_imagePath ?? 'No Image Selected'),
+              trailing: IconButton(
+                icon: const Icon(Icons.add_a_photo),
+                onPressed: _pickImage,
+              ),
+            ),
+            if (_imagePath != null)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Image.file(File(_imagePath!), height: 100),
+              ),
             const Divider(),
             ListTile(
               title: const Text('Can send SMS'),

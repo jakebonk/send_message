@@ -1,3 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   package="com.example.send_message">
+    <application>
+        <provider
+            android:name=".SendMessageFileProvider"
+            android:authorities="${applicationId}.send_message.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/send_message_provider_paths" />
+        </provider>
+    </application>
 </manifest>

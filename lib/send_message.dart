@@ -6,11 +6,13 @@ import 'src/send_message_platform.dart';
 Future<String> sendSMS({
   required String message,
   required List<String> recipients,
+  List<String>? attachmentPaths,
   bool sendDirect = false,
 }) =>
     FlutterSmsPlatform.instance.sendSMS(
       message: message,
       recipients: recipients,
+      attachmentPaths: attachmentPaths,
       sendDirect: sendDirect,
     );
 

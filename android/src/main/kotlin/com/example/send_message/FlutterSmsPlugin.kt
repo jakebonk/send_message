@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.telephony.SmsManager
+import android.provider.Telephony
 import android.util.Log
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -73,7 +74,8 @@ class FlutterSmsPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         val message = call.argument<String?>("message") ?: ""
         val recipients = call.argument<String?>("recipients") ?: ""
         val sendDirect = call.argument<Boolean?>("sendDirect") ?: false
-        sendSMS(result, recipients, message, sendDirect)
+        val attachmentPaths = call.argument<List<String>?>("attachmentPaths") ?: listOf()
+        sendSMS(result, recipients, message, sendDirect, attachmentPaths)
       }
 
       "canSendSMS" -> result.success(canSendSMS())
@@ -93,11 +95,11 @@ class FlutterSmsPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     return !(activityInfo == null || !activityInfo.exported)
   }
 
-  private fun sendSMS(result: Result, phones: String, message: String, sendDirect: Boolean) {
+  private fun sendSMS(result: Result, phones: String, message: String, sendDirect: Boolean, attachments: List<String>) {
     if (sendDirect) {
       sendSMSDirect(result, phones, message)
     } else {
-      sendSMSDialog(result, phones, message)
+      sendSMSDialog(result, phones, message, attachments)
     }
   }
 
@@ -130,16 +132,71 @@ class FlutterSmsPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     result.success("SMS Sent!")
   }
 
-  private fun sendSMSDialog(result: Result, phones: String, message: String) {
+  private fun sendSMSDialog(result: Result, phones: String, message: String, attachments: List<String>) {
     val currentActivity = activity ?: run {
       result.error("no_activity", "Activity is not available", null)
       return
     }
 
-    val intent = Intent(Intent.ACTION_SENDTO)
-    intent.data = Uri.parse("smsto:$phones")
-    intent.putExtra("sms_body", message)
-    intent.putExtra(Intent.EXTRA_TEXT, message)
+    // Try to get default SMS package, with fallback to intent resolution
+    var defaultSmsPackage = Telephony.Sms.getDefaultSmsPackage(currentActivity)
+    if (defaultSmsPackage == null) {
+      // Fallback: resolve the default handler for smsto: URIs
+      val resolveIntent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:"))
+      val resolveInfo = currentActivity.packageManager.resolveActivity(resolveIntent, PackageManager.MATCH_DEFAULT_ONLY)
+      defaultSmsPackage = resolveInfo?.activityInfo?.packageName
+      Log.d("FlutterSMS", "Fallback SMS package from intent resolution: $defaultSmsPackage")
+    }
+    Log.d("FlutterSMS", "Default SMS package: $defaultSmsPackage")
+    
+    // Normalize recipient separator for MMS/SMS URIs
+    val normalizedPhones = phones.replace(";", ",")        
+
+    val intent: Intent
+    if (attachments.isEmpty()) {
+      intent = Intent(Intent.ACTION_SENDTO)
+      intent.data = Uri.parse("smsto:$normalizedPhones")
+      intent.putExtra("sms_body", message)
+      intent.putExtra(Intent.EXTRA_TEXT, message)
+      if (defaultSmsPackage != null) {
+        intent.`package` = defaultSmsPackage
+      }
+      intent.putExtra(Intent.EXTRA_PHONE_NUMBER, normalizedPhones)
+    } else {
+      // For MMS with attachments, we need to use ACTION_SEND or ACTION_SEND_MULTIPLE
+      // but setting type clears the data URI, so we rely on extras for the recipient
+      intent = Intent(Intent.ACTION_SEND)
+      intent.type = "image/*"
+      
+      if (attachments.size == 1) {
+        val file = java.io.File(attachments[0])
+        val uri = androidx.core.content.FileProvider.getUriForFile(currentActivity, currentActivity.packageName + ".send_message.fileprovider", file)
+        intent.putExtra(Intent.EXTRA_STREAM, uri)
+      } else {
+        intent.action = Intent.ACTION_SEND_MULTIPLE
+        val uris = java.util.ArrayList<Uri>()
+        for (path in attachments) {
+          val file = java.io.File(path)
+          val uri = androidx.core.content.FileProvider.getUriForFile(currentActivity, currentActivity.packageName + ".send_message.fileprovider", file)
+          uris.add(uri)
+        }
+        intent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+      }
+      
+      intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      // Set recipient using multiple extras that different SMS apps recognize
+      intent.putExtra("address", normalizedPhones)
+      intent.putExtra("sms_body", message)
+      intent.putExtra("subject", "")
+      intent.putExtra(Intent.EXTRA_PHONE_NUMBER, normalizedPhones)
+      // Some apps use these extras
+      intent.putExtra("exit_on_sent", true)
+      
+      if (defaultSmsPackage != null) {
+        intent.`package` = defaultSmsPackage
+      }
+    }
+
     currentActivity.startActivityForResult(intent, REQUEST_CODE_SEND_SMS)
     result.success("SMS Sent!")
   }
