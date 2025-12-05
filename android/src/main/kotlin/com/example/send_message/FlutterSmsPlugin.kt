@@ -119,8 +119,7 @@ class FlutterSmsPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     val mSmsManager = SmsManager.getDefault()
     val numbers = phones.split(";")
 
-    for (num in numbers) {
-      Log.d("Flutter SMS", "msg.length() : " + message.toByteArray().size)
+    for (num in numbers) {      
       if (message.toByteArray().size > 80) {
         val partMessage = mSmsManager.divideMessage(message)
         mSmsManager.sendMultipartTextMessage(num, null, partMessage, null, null)
@@ -144,10 +143,8 @@ class FlutterSmsPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
       // Fallback: resolve the default handler for smsto: URIs
       val resolveIntent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:"))
       val resolveInfo = currentActivity.packageManager.resolveActivity(resolveIntent, PackageManager.MATCH_DEFAULT_ONLY)
-      defaultSmsPackage = resolveInfo?.activityInfo?.packageName
-      Log.d("FlutterSMS", "Fallback SMS package from intent resolution: $defaultSmsPackage")
+      defaultSmsPackage = resolveInfo?.activityInfo?.packageName      
     }
-    Log.d("FlutterSMS", "Default SMS package: $defaultSmsPackage")
     
     // Normalize recipient separator for MMS/SMS URIs
     val normalizedPhones = phones.replace(";", ",")        
