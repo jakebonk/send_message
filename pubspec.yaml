@@ -31,4 +31,4 @@ flutter:
         pluginClass: FlutterSmsPlugin
       web:
         pluginClass: FlutterSmsPlugin
-        fileName: flutter_sms_web.dart
+        fileName: send_message_web.dart

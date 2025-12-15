@@ -6,7 +6,6 @@ import 'src/send_message_platform.dart';
 
 class FlutterSmsPlugin extends FlutterSmsPlatform {
   static void registerWith(Registrar registrar) {
-    // WidgetsFlutterBinding.ensureInitialized();
     FlutterSmsPlatform.instance = FlutterSmsPlugin();
   }
 
@@ -17,12 +16,25 @@ class FlutterSmsPlugin extends FlutterSmsPlatform {
     List<String>? attachmentPaths,
     bool sendDirect = false,
   }) async {
-    bool _messageSent =
-        await FlutterSmsPlatform.instance.launchSmsMulti(recipients, message);
-    if (_messageSent) return 'Message Sent!';
-    return 'Error Sending Message!';
+    throw UnsupportedError(
+      'sendSMS is not supported on web. SMS functionality requires a native device.',
+    );
   }
 
   @override
-  Future<bool> canSendSMS() => Future.value(true);
+  Future<bool> canSendSMS() => Future.value(false);
+
+  @override
+  Future<bool> launchSms(String? number, [String? body]) {
+    throw UnsupportedError(
+      'launchSms is not supported on web. SMS functionality requires a native device.',
+    );
+  }
+
+  @override
+  Future<bool> launchSmsMulti(List<String> numbers, [String? body]) {
+    throw UnsupportedError(
+      'launchSmsMulti is not supported on web. SMS functionality requires a native device.',
+    );
+  }
 }
